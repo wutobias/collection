@@ -80,20 +80,20 @@ Calculate molecular diameter.
 ## Classes and functions
 These files contain classes and functions that can be helpful. Some of the scripts above depend on these.
 
-### plot_hist.py
+#### plot_hist.py
 Contains some high-level functions for plotting 1d and 2d histograms.
 
-### io_operations.py
+#### io_operations.py
 Different methods for reading and writing dx and pdb files.
 
-### helpers.py
+#### helpers.py
 Various helper functions.
 
-### spatial.py
+#### spatial.py
 Some helper functions for spatial transformations.
 
-### watcor
+#### watcor
 Module containing methods for calculating correlations between Hydration sites.
 
-### xtalmd
+#### xtalmd
 Unfinished module for preparing and running MD simulations of crystal lattices. Used by make_supercell.py
