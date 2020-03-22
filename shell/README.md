@@ -1,0 +1,1 @@
+This is a collection shell scripts (mostly bash I think)!
