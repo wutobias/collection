@@ -97,3 +97,6 @@ Module containing methods for calculating correlations between Hydration sites.
 
 #### xtalmd
 Unfinished module for preparing and running MD simulations of crystal lattices. Used by make_supercell.py
+
+#### box_crds.py
+Handling atom fractional coordinates in simulation box
