@@ -29,6 +29,10 @@ parser.add_argument('--lattice_factors_z', '-lz',type=int,\
                                                  help='Repeat unit cell in z direction from a to b',\
                                                  default=[-1,1],\
                                                  nargs=2)
+parser.add_argument('--duplicate_cutoff',  '-dc',type=float,\
+                                                 help='If any atom between any two molecules are closer than this, one of them molecules be removed.',\
+                                                 default=1e-5,\
+                                                 nargs=1)
 parser.add_argument('--output',          '-o',   type=str,\
                                                  help='Output filename',\
                                                  default='lattice.pdb')
@@ -39,7 +43,8 @@ parser.add_argument('--verbose',         '-v',   type=int,\
 def symexpcell(
     prefix='mate',
     pymol_object=None, 
-    reference=None, 
+    reference=None,
+    duplicate_cutoff=1e-5,
     a=0, 
     b=0, 
     c=0):
@@ -120,7 +125,7 @@ SEE ALSO
                 crds_list[unique_objects]-crds_list[mat_i],
                 axis=2
                 )
-        too_close_list = np.where(dists < 1e-10)[0]
+        too_close_list = np.where(dists < duplicate_cutoff)[0]
         if too_close_list.size == 0:
             unique_objects.append(mat_i)
 
@@ -162,7 +167,14 @@ if __name__ == "__main__":
                 for c in range(args.lattice_factors_z[0],args.lattice_factors_z[1]+1):
                     if verbose:
                         print("Generating unit cell",a,b,c)
-                    object_list = symexpcell("i_", "input", "reference", a, b, c)
+                    object_list = symexpcell(
+                        "i_",
+                        "input",
+                        "reference",
+                        args.duplicate_cutoff,
+                        a, 
+                        b, 
+                        c)
                     for i in range(len(object_list)):
                         chain = string.ascii_uppercase[i]
                         pymol.cmd.alter(object_list[i], 'chain="%s"' %chain)
@@ -173,4 +185,5 @@ if __name__ == "__main__":
                         object_count += 1
         pymol.cmd.delete("input")
 
+    pymol.cmd.set('pdb_use_ter_records', 1)
     pymol.cmd.save(args.output, "global")
