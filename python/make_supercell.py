@@ -261,6 +261,7 @@ if __name__ == "__main__":
                         c)
                     for i in range(len(object_list)):
                         chain = string.ascii_uppercase[i]
+                        chain = string.ascii_uppercase[i]
                         pymol.cmd.copy("mol%d" %object_count, object_list[i])
                         pymol.cmd.alter("mol%d" %object_count, 'chain="%s"' %chain)
                         pymol.cmd.group("global", "mol%d" %object_count)
