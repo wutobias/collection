@@ -2,6 +2,7 @@
 
 import argparse
 import numpy as np
+from scipy.spatial import distance
 import string
 import __main__
 import xtalmd
@@ -93,10 +94,18 @@ SEE ALSO
 
     extra_shift = [[float(i)] for i in (a,b,c)]
 
-    matrices    = pymol.xray.sg_sym_to_mat_list(spacegroup)
-    N_matrices  = len(matrices)
-    crds_list   = np.zeros(
+    matrices     = pymol.xray.sg_sym_to_mat_list(spacegroup)
+    global_names = pymol.cmd.get_object_list("global")
+    N_global     = len(global_names)
+    N_matrices   = len(matrices)
+    crds_list_mates = np.zeros(
         (N_matrices,
+         pymol.cmd.count_atoms(pymol_object),
+         3
+         )
+        )
+    crds_list_global = np.zeros(
+        (N_global,
          pymol.cmd.count_atoms(pymol_object),
          3
          )
@@ -113,24 +122,43 @@ SEE ALSO
         name = '%s%d' % (prefix, mat_i)
         pymol.cmd.create(name, pymol_object)
         pymol.cmd.transform_object(name, mat_list, 0)
-        crds_list[mat_i] = pymol.cmd.get_coords(name, 1)
+        crds_list_mates[mat_i] = pymol.cmd.get_coords(name, 1)
 
-    unique_objects = [0]
+    for global_i in range(N_global):
+        crds_list_global[global_i] = pymol.cmd.get_coords(global_names[global_i], 1)
+
+    excluded_objects = []
     for mat_i in range(N_matrices):
-        if mat_i in unique_objects:
+        if mat_i in excluded_objects:
             continue
         ### Compute distance between molecule generated through
         ### matrix `mat_i` and all other molecules
-        dists = np.linalg.norm(
-                crds_list[unique_objects]-crds_list[mat_i],
-                axis=2
-                )
-        too_close_list = np.where(dists < duplicate_cutoff)[0]
-        if too_close_list.size == 0:
-            unique_objects.append(mat_i)
+        for j in range(N_matrices):
+            if mat_i == j:
+                continue
+            dists_mates = distance.cdist(
+                    crds_list_mates[j],
+                    crds_list_mates[mat_i],
+                    )
+            too_close_list_mates  = np.where(dists_mates < duplicate_cutoff)[0]
+            if too_close_list_mates.size > 0:
+                excluded_objects.append(j)
+        for j in range(N_global):
+            dists_global = distance.cdist(
+                    crds_list_global[j],
+                    crds_list_mates[mat_i],
+                    )
+            too_close_list_global = np.where(dists_global < duplicate_cutoff)[0]
+            if too_close_list_global.size > 0:
+                excluded_objects.append(mat_i)
+                break
 
-    for obj_i in range(len(unique_objects)):
-        unique_objects[obj_i] = '%s%d' % (prefix, unique_objects[obj_i])
+    unique_objects = list()
+    for mat_i in range(N_matrices):
+        if not mat_i in excluded_objects:
+            unique_objects.append('%s%d' % (prefix, mat_i))
+        else:
+            pymol.cmd.delete('%s%d' % (prefix, mat_i))
 
     return unique_objects
 
@@ -154,9 +182,12 @@ if __name__ == "__main__":
     pymol.cmd.set("pdb_conect_all", "on")
     pymol.cmd.set("connect_mode", "1")
     pymol.cmd.set("retain_order", "1")
+    pymol.cmd.set('pdb_use_ter_records', 1)
+    pymol.cmd.group("global")
 
     pymol.cmd.load(args.reference, "reference")
     object_count = 0
+    uc_count     = 0
 
     for input_idx, input in enumerate(args.input):
         if verbose:
@@ -177,13 +208,14 @@ if __name__ == "__main__":
                         c)
                     for i in range(len(object_list)):
                         chain = string.ascii_uppercase[i]
-                        pymol.cmd.alter(object_list[i], 'chain="%s"' %chain)
-                        if verbose:
-                            pymol.cmd.save("mol%d_%d%d%d_%d_" %(input_idx,a,b,c,i) + args.output, object_list[i])
                         pymol.cmd.copy("mol%d" %object_count, object_list[i])
+                        pymol.cmd.alter("mol%d" %object_count, 'chain="%s"' %chain)
                         pymol.cmd.group("global", "mol%d" %object_count)
+                        if verbose:
+                            pymol.cmd.save("mol%d_%d%d%d_%d_" %(input_idx,a,b,c,i) + args.output, "mol%d" %object_count)
+                        pymol.cmd.delete(object_list[i])
                         object_count += 1
+                    uc_count += 1
         pymol.cmd.delete("input")
 
-    pymol.cmd.set('pdb_use_ter_records', 1)
     pymol.cmd.save(args.output, "global")
