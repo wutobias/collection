@@ -193,6 +193,52 @@ if __name__ == "__main__":
         if verbose:
             print("Loading %s..." %input)
         pymol.cmd.load(input, "input")
+        ### Build the P1 cell
+        p1_object_list = symexpcell(
+            "p1_cell",
+            "input",
+            "reference",
+            args.duplicate_cutoff,
+            0,
+            0,
+            0)
+        
+        crds_list = list()
+        N_p1_obj  = len(p1_object_list)
+        remove_atoms = list()
+        for object_name in p1_object_list:
+            crds_list.append(pymol.cmd.get_coords(object_name, 1))
+        crds_list = np.array(crds_list)
+        for object_idx in range(N_p1_obj):
+            for i in range(N_p1_obj):
+                if i == object_idx:
+                    continue
+                p1_dists = distance.cdist(
+                    crds_list[i],
+                    crds_list[object_idx]
+                    )
+                valids_1, valids_2 = np.where(p1_dists < args.duplicate_cutoff)
+                for i in range(valids_1.size):
+                    valids1_str = f"{p1_object_list[object_idx]} and id {valids_1[i]+1:d}"
+                    valids2_str = f"{p1_object_list[i]} and id {valids_2[i]+1:d}"
+                    if not valids_2[i] in remove_atoms:
+                        remove_atoms.append(valids1_str)
+        for ra in remove_atoms:
+            pymol.cmd.remove(ra)
+        pymol.cmd.create("input_p1", " or ".join(p1_object_list))
+        for object_name in p1_object_list:
+            pymol.cmd.delete(object_name)
+        a, b, c, alpha, beta, gamma, spacegroup = pymol.cmd.get_symmetry("input")
+        pymol.cmd.set_symmetry(
+            "input_p1", 
+            a,
+            b,
+            c,
+            alpha,
+            beta,
+            gamma,
+            "P1")
+        pymol.cmd.delete(f"input")
         for a in range(args.lattice_factors_x[0],args.lattice_factors_x[1]+1):
             for b in range(args.lattice_factors_y[0],args.lattice_factors_y[1]+1):
                 for c in range(args.lattice_factors_z[0],args.lattice_factors_z[1]+1):
@@ -200,8 +246,8 @@ if __name__ == "__main__":
                         print("Generating unit cell",a,b,c)
                     object_list = symexpcell(
                         "i_",
-                        "input",
-                        "reference",
+                        "input_p1",
+                        "input_p1",
                         args.duplicate_cutoff,
                         a, 
                         b, 
@@ -216,6 +262,6 @@ if __name__ == "__main__":
                         pymol.cmd.delete(object_list[i])
                         object_count += 1
                     uc_count += 1
-        pymol.cmd.delete("input")
+        pymol.cmd.delete("input_p1")
 
     pymol.cmd.save(args.output, "global")
