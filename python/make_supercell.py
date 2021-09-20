@@ -209,24 +209,31 @@ if __name__ == "__main__":
         for object_name in p1_object_list:
             crds_list.append(pymol.cmd.get_coords(object_name, 1))
         crds_list = np.array(crds_list)
-        for object_idx in range(N_p1_obj):
-            for i in range(N_p1_obj):
-                if i == object_idx:
-                    continue
+        for object_idx_1 in range(N_p1_obj):
+            for object_idx_2 in range(N_p1_obj):
                 p1_dists = distance.cdist(
-                    crds_list[i],
-                    crds_list[object_idx]
+                    crds_list[object_idx_1],
+                    crds_list[object_idx_2]
                     )
                 valids_1, valids_2 = np.where(p1_dists < args.duplicate_cutoff)
                 for i in range(valids_1.size):
-                    valids1_str = f"{p1_object_list[object_idx]} and id {valids_1[i]+1:d}"
-                    valids2_str = f"{p1_object_list[i]} and id {valids_2[i]+1:d}"
-                    if not valids_2[i] in remove_atoms:
-                        remove_atoms.append(valids1_str)
+                    if valids_1[i] == valids_2[i]:
+                        continue
+                    valids1_str = f"{p1_object_list[object_idx_1]} and rank {valids_1[i]:d}"
+                    valids2_str = f"{p1_object_list[object_idx_2]} and rank {valids_2[i]:d}"
+                    if not valids2_str in remove_atoms:
+                        if not valids1_str in remove_atoms:
+                            remove_atoms.append(valids1_str)
         for ra in remove_atoms:
             pymol.cmd.remove(ra)
-        pymol.cmd.create("input_p1", " or ".join(p1_object_list))
+        create_list = list()
         for object_name in p1_object_list:
+            if pymol.cmd.count_atoms(object_name) == 0:
+                pymol.cmd.delete(object_name)
+            else:
+                create_list.append(object_name)
+        pymol.cmd.create("input_p1", " or ".join(create_list))
+        for object_name in create_list:
             pymol.cmd.delete(object_name)
         a, b, c, alpha, beta, gamma, spacegroup = pymol.cmd.get_symmetry("input")
         pymol.cmd.set_symmetry(
